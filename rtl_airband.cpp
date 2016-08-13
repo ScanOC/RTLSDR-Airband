@@ -169,6 +169,9 @@ struct file_data {
     const char *prefix;
     char *suffix;
     bool continuous;
+    bool split_trans;
+    bool new_file;
+    bool localtime;
     bool append;
     FILE *f;
 };
@@ -618,15 +621,25 @@ void process_outputs(channel_t* channel) {
             }
         } else if(channel->outputs[k].type == O_FILE) {
             file_data *fdata = (file_data *)(channel->outputs[k].data);
-            if(fdata->continuous == false && channel->axcindicate == ' ' && channel->outputs[k].active == false) continue;
+            if(channel->axcindicate == ' ' && channel->outputs[k].active == false) {
+                if(fdata->split_trans) fdata->new_file = true;
+                if(fdata->continuous == false) continue;
+            }
+            //if(fdata->continuous == false && channel->axcindicate == ' ' && channel->outputs[k].active == false) continue;
             time_t t = time(NULL);
-            struct tm *tmp = gmtime(&t);
+            struct tm *tmp;
+            if(fdata->localtime) {
+                tmp = localtime(&t);
+            } else {
+                tmp = gmtime(&t);
+            }
             char suffix[32];
-            if(strftime(suffix, sizeof(suffix), "_%Y%m%d_%H.mp3", tmp) == 0) {
+            if(strftime(suffix, sizeof(suffix), "_%Y%m%d_%H%M%S.mp3", tmp) == 0) {
                 log(LOG_NOTICE, "strftime returned 0\n");
                 continue;
             }
-            if(fdata->suffix == NULL || strcmp(suffix, fdata->suffix)) {    // need to open new file
+            if(fdata->suffix == NULL || ( fdata->new_file && strcmp(suffix, fdata->suffix))) {    // need to open new file
+                fdata->new_file = false;
                 fdata->suffix = strdup(suffix);
                 char *filename = (char *)malloc(strlen(fdata->dir) + strlen(fdata->prefix) + strlen(fdata->suffix) + 2);
                 if(filename == NULL) {
@@ -1443,6 +1456,9 @@ int main(int argc, char* argv[]) {
                         fdata->prefix = strdup(devs[i]["channels"][j]["outputs"][o]["filename_template"]);
                         fdata->continuous = devs[i]["channels"][j]["outputs"][o].exists("continuous") ?
                             (bool)(devs[i]["channels"][j]["outputs"][o]["continuous"]) : false;
+                        fdata->split_trans = true;
+                        fdata->localtime = true;
+			fdata->new_file = true;
                         fdata->append = (!devs[i]["channels"][j]["outputs"][o].exists("append")) || (bool)(devs[i]["channels"][j]["outputs"][o]["append"]);
                     } else {
                         cerr<<"Configuration error: devices.["<<i<<"] channels.["<<j<<"] outputs["<<o<<"]: unknown output type\n";
