@@ -61,6 +61,11 @@
 # you may need to lower this value
 # rtlsdr_buffers = 10;
 
+# Use local timezone for output filenames
+# By default the time used for the output filenames will use UTC time.
+# Setting localtime to true will use the system's local timezone
+localtime = false;
+
 # devices section contains all settings related to the RTLSDR receivers.
 #
 # It's a list of groups - each group contains settings for a single receiver,

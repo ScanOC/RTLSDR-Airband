@@ -245,6 +245,7 @@ int avx;
 #endif
 int foreground = 0, do_syslog = 1;
 static volatile int do_exit = 0;
+bool use_localtime = false;
 #ifdef NFM
 float alpha = exp(-1.0f/(WAVE_RATE * 2e-4));
 enum fm_demod_algo {
@@ -620,7 +621,11 @@ void process_outputs(channel_t* channel) {
             file_data *fdata = (file_data *)(channel->outputs[k].data);
             if(fdata->continuous == false && channel->axcindicate == ' ' && channel->outputs[k].active == false) continue;
             time_t t = time(NULL);
-            struct tm *tmp = gmtime(&t);
+            struct tm *tmp;
+            if(use_localtime)
+                 tmp = localtime(&t);
+            else
+                 tmp = gmtime(&t);
             char suffix[32];
             if(strftime(suffix, sizeof(suffix), "_%Y%m%d_%H.mp3", tmp) == 0) {
                 log(LOG_NOTICE, "strftime returned 0\n");
@@ -1262,6 +1267,8 @@ int main(int argc, char* argv[]) {
             cerr<<"Configuration error: rtlsdr_buffers must be greater than 0\n";
             error();
         }
+        if(root.exists("localtime") && (bool)root["localtime"] == true)
+            use_localtime = true;
 #ifdef NFM
         if(root.exists("tau"))
             alpha = ((int)root["tau"] == 0 ? 0.0f : exp(-1.0f/(WAVE_RATE * 1e-6 * (int)root["tau"])));
